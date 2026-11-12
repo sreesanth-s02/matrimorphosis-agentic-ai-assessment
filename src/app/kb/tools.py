@@ -5,6 +5,8 @@ TODO(task 2): search_knowledge_base is a sync function that blocks (embedding + 
 TODO(task 6): the knowledge base is keyed by the chat's session id. Key it by the USER (runtime.context.user_id, add it to
   Ctx in context.py): ingest and search must use the user's id, so every chat of a user shares one knowledge base and nobody else sees it.
 """
+import asyncio
+
 from langchain.tools import ToolRuntime
 from langchain_core.tools import ToolException, tool
 
@@ -49,7 +51,7 @@ def build_kb_tools(kb: KnowledgeBase) -> list:
                 f"Keywords: {', '.join(p.keywords)}.")
 
     @tool
-    def search_knowledge_base(query: str, runtime: ToolRuntime[Ctx], k: int = 4, doc_name: str = "") -> str:
+    async def search_knowledge_base(query: str, runtime: ToolRuntime[Ctx], k: int = 4, doc_name: str = "") -> str:
         """Search the documents the user uploaded in this session. Use it BEFORE other tools or your
         own knowledge whenever the KNOWLEDGE BASE overview/keywords in the system prompt suggest the
         question can be answered from those documents. Returns numbered passages, each with a
@@ -70,7 +72,7 @@ def build_kb_tools(kb: KnowledgeBase) -> list:
                 raise ToolException(f"ERROR[UNKNOWN_DOCUMENT]: No document matches '{doc_name}'. Documents in this session: {names}. "
                                     "Next step: retry with one of these names, or without doc_name.")
         try:
-            hits = kb.search(sid, query, k=max(1, min(k, 6)), doc_name=exact)
+            hits = await asyncio.to_thread(kb.search, sid, query, k=max(1, min(k, 6)), doc_name=exact)
         except Exception as exc:
             raise to_tool_exception(exc) from exc
         best = max((h.relevance for h in hits), default=0.0)

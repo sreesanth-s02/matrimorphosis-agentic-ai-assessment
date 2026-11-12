@@ -99,9 +99,6 @@ async def build_agent(kb: KnowledgeBase, model=agent_llm, checkpointer=None):
       5. MEMORY: checkpointer=checkpointer (task 3), so each thread_id keeps its own conversation
       6. return `agent, tools`   (the TOOL OBJECTS; main.py builds /health and /debug/tools from them)
     """
-    async def build_agent(kb: KnowledgeBase, model=agent_llm, checkpointer=None):
-    """Build the LangChain agent with all available tools."""
-
     tools = [
         *S1_TOOLS,
         *build_kb_tools(kb),
