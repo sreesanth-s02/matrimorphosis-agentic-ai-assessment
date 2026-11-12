@@ -14,11 +14,16 @@ Hints
 import os
 from contextlib import asynccontextmanager
 
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 CHECKPOINT_DB = os.getenv("CHECKPOINT_DB", "checkpoints.sqlite")
 
 
 @asynccontextmanager
 async def open_checkpointer():
-    yield InMemorySaver()  # TODO(task 3): replace with an AsyncSqliteSaver on CHECKPOINT_DB
+    db_path = CHECKPOINT_DB
+    directory = os.path.dirname(db_path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    async with AsyncSqliteSaver.from_conn_string(db_path) as saver:
+        yield saver

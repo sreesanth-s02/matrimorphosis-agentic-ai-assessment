@@ -31,14 +31,15 @@ from app.tools_s1 import CHARTS_DIR
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.kb = KnowledgeBase()  # loads the embedder, opens Qdrant + SQLite
-    # TODO(task 3): integrate the checkpointer. `open_checkpointer()` (persistence.py) is an async CONTEXT MANAGER that you
-    #   write: open it here, pass the saver to build_agent(..., checkpointer=saver), and keep it open until shutdown
-    #   (everything from build_agent to `yield` goes inside the `async with`). Today the agent has no memory at all.
-    agent, tools = await build_agent(app.state.kb)
-    app.state.agent, app.state.tools = agent, tools
-    app.state.tool_names = [t.name for t in tools]
-    log.info("startup_complete", tools=app.state.tool_names)
-    yield
+    async with open_checkpointer() as checkpointer:
+        # TODO(task 3): integrate the checkpointer. `open_checkpointer()` (persistence.py) is an async CONTEXT MANAGER that you
+        #   write: open it here, pass the saver to build_agent(..., checkpointer=saver), and keep it open until shutdown
+        #   (everything from build_agent to `yield` goes inside the `async with`). Today the agent has no memory at all.
+        agent, tools = await build_agent(app.state.kb, checkpointer=checkpointer)
+        app.state.agent, app.state.tools = agent, tools
+        app.state.tool_names = [t.name for t in tools]
+        log.info("startup_complete", tools=app.state.tool_names)
+        yield
     shutdown_telemetry()
 
 
