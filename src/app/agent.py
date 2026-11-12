@@ -99,8 +99,32 @@ async def build_agent(kb: KnowledgeBase, model=agent_llm, checkpointer=None):
       5. MEMORY: checkpointer=checkpointer (task 3), so each thread_id keeps its own conversation
       6. return `agent, tools`   (the TOOL OBJECTS; main.py builds /health and /debug/tools from them)
     """
-    tools = [*S1_TOOLS]  # TODO(task 1.1)
-    agent = create_agent(model=model, tools=tools, system_prompt=SYSTEM_PROMPT)  # TODO(task 1.2 - 1.5)
+    async def build_agent(kb: KnowledgeBase, model=agent_llm, checkpointer=None):
+    """Build the LangChain agent with all available tools."""
+
+    tools = [
+        *S1_TOOLS,
+        *build_kb_tools(kb),
+        *await mcp_tools(),
+        *build_custom_tools(kb),
+    ]
+
+    @dynamic_prompt
+    def knowledge_base_prompt(request: ModelRequest) -> str:
+        session_id = request.runtime.context.session_id
+        return f"{SYSTEM_PROMPT}\n\n{kb.prompt_block(session_id)}"
+
+    agent = create_agent(
+        model=model,
+        tools=tools,
+        middleware=[
+            knowledge_base_prompt,
+            ShrinkOldToolResults(),
+        ],
+        context_schema=Ctx,
+        checkpointer=checkpointer,
+    )
+
     return agent, tools
 
 
